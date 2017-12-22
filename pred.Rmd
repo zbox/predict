@@ -1,5 +1,5 @@
 ---
-title: "Prediction Assignment Writeup"
+title: "Prediction Assignment"
 author: A.Zhukov
 date: December 22, 2017
 output: html_document
