@@ -1,0 +1,101 @@
+---
+title: "Prediction Assignment Writeup"
+author: A.Zhukov
+date: December 22, 2017
+output: html_document
+---
+
+## Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+## Data
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
+
+```{r, echo=FALSE}
+library(ggplot2)
+library(caret)
+library(rpart)
+library(randomForest)
+```
+
+### Loading datasets:
+
+```{r}
+data_train <- read.csv(
+  "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
+  header = TRUE, 
+  na.strings = c("NA","#DIV/0!","")
+)
+
+data_test <- read.csv(
+  "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+  header = TRUE, 
+  na.strings = c("NA","#DIV/0!","")
+)
+```
+
+## Cleaning and preparing the data
+Removing NA values and near zero variables from training dataset.
+
+```{r}
+data_train <- data_train[,-1]
+data_train <- data_train[, colSums(is.na(data_train)) == 0]
+nz <- nearZeroVar(data_train)
+data_train <- data_train[, -nz]
+
+# the dimension of an object
+dim(data_train)
+```
+
+### Create training and testing sets
+Using training dataset split data into training data set (80%) and a validation data set (20%). We will use it for cross validation in future.
+```{r}
+set.seed(1020) #for reproducibiliy
+
+ptrain <- createDataPartition(y = data_train$classe, p = 0.80, list = FALSE)
+
+set_train <- data_train[ptrain,]
+set_test <- data_train[-ptrain,]
+```
+
+## Train Model
+### Predicting with Decision Tree
+Use the confusionMatrix function from the caret package for more statistics.
+```{r}
+fit1 <- train(classe ~., data = set_train, method = "rpart")
+predict1 <- predict(fit1, set_test)
+confm1 <- confusionMatrix(set_test$classe, predict1)
+confm1
+```
+As we see accuracy of decision tree method is mediocre: 0.6215   
+
+### Predicting with Random Forest
+Now let`s examine random forest model. It`s invariant under scaling, robust and produces inspectable models.
+```{r}
+fit2 <- randomForest(classe ~., data = set_train)
+predict2 <- predict(fit2, set_test, type = "class")
+confm2 <- confusionMatrix(set_test$classe, predict2)
+confm2
+```
+This time accuracy is much better (0.9995). 
+
+```{r}
+plot(fit2)
+```
+
+```{r}
+set_test$check_pred2 <- predict2 == set_test$classe
+table(predict2, set_test$classe)
+```
+
+```{r}
+data_test <- data_test[, colnames(data_test) %in% colnames(set_train)]
+dt <- head(data_train,1)
+dt <- rbind(dt[, -length(colnames(dt))], data_test)
+result <- predict(fit2, dt[-1,], type = "class")
+result
+```
+This method give around 99% acccuracy which is much higher than previous method.
+
+## Summary
+The accuracy of the two models was compared: decision tree (0.6215) and random forest (0.9995). We can see that the random forest model had produced the highest level of accuracy as compared to the decision tree model.
